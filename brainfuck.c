@@ -41,7 +41,7 @@ void validateCode() {
     else if(code[codeIndex] == ']') {
       if(bracketDepth == 0) {
 	/* TODO: specify line and column */
-	fprintf(stderr, "error: %d char is an unmatched ']'\n", codeIndex + 1);
+	fprintf(stderr, "error: %d. char is an unmatched ']'\n", codeIndex + 1);
 	exit(1);
       }
       bracketDepth--;

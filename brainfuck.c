@@ -38,25 +38,39 @@ void validateCode() {
   /* the error reporting strategy is to report as early as
      possible. */
   int bracketDepth = 0;
-  int uppermostLeftBracketIndex = -1;
-  for(; code[codeIndex] != '\0'; codeIndex++) {
-    if(code[codeIndex] == '[') {
+
+  int currentLine = 1;
+  int currentColumn = 1;
+
+  int uppermostLeftBracketLine = -1;
+  int uppermostLeftBracketColumn = -1;
+
+  for(; code[codeIndex] != '\0';) {
+    switch(code[codeIndex]) {
+    case '[':
       if(bracketDepth == 0) {
-	uppermostLeftBracketIndex = codeIndex;
+	uppermostLeftBracketLine = currentLine;
+	uppermostLeftBracketColumn = currentColumn;
       }
       bracketDepth++;
-    }
-    else if(code[codeIndex] == ']') {
+      break;
+    case ']':
       if(bracketDepth == 0) {
-	/* TODO: specify line and column */
-	fprintf(stderr, "error: %d. char is an unmatched ']'\n", codeIndex + 1);
+	fprintf(stderr, "error: %d. char in %d. line is an unmatched ']'\n", currentColumn, currentLine);
 	exit(1);
       }
       bracketDepth--;
+      break;
+    case '\n':
+      currentLine++;
+      currentColumn = 0;
+      break;
     }
+    codeIndex++;
+    currentColumn++;
   }
   if(bracketDepth != 0) {
-    fprintf(stderr, "error: %d. char is an unmatched '['\n", uppermostLeftBracketIndex + 1);
+    fprintf(stderr, "error: %d. char in %d. line is an unmatched '['\n", uppermostLeftBracketColumn, uppermostLeftBracketLine);
     exit(1);
   }
   codeIndex = 0;

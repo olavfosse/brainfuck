@@ -35,9 +35,17 @@ void readCode() {
 
 /* validates that all '[' have matching ']' and vice versa. */
 void validateCode() {
+  /* the error reporting strategy is to report as early as
+     possible. */
   int bracketDepth = 0;
-  for(codeIndex++; code[codeIndex] != '\0'; codeIndex++) {
-    if(code[codeIndex] == '[') bracketDepth++;
+  int uppermostLeftBracketIndex = -1;
+  for(; code[codeIndex] != '\0'; codeIndex++) {
+    if(code[codeIndex] == '[') {
+      if(bracketDepth == 0) {
+	uppermostLeftBracketIndex = codeIndex;
+      }
+      bracketDepth++;
+    }
     else if(code[codeIndex] == ']') {
       if(bracketDepth == 0) {
 	/* TODO: specify line and column */
@@ -46,6 +54,10 @@ void validateCode() {
       }
       bracketDepth--;
     }
+  }
+  if(bracketDepth != 0) {
+    fprintf(stderr, "error: %d. char is an unmatched '['\n", uppermostLeftBracketIndex + 1);
+    exit(1);
   }
   codeIndex = 0;
 }

@@ -1,13 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#define BYTES 30000
-
-char memory[BYTES];
-
-void zeroMemory() {
-  int i;
-  for(i = 0; i < BYTES; i++) memory[i] = 0;
-}
 
 int codeIndex = 0;
 char *code;
@@ -77,15 +69,19 @@ void validateCode() {
 }
 
 int main() {
-  char *p;
+  FILE *fp;
   int bracketDepth;
 
   readCode();
   validateCode();
 
-  p = memory;
+  fp = fopen("code.asm", "w");
+  if(fp == NULL) {
+    fputs("error: could not open code.asm\n", stderr);
+    exit(1);
+  }
 
-  zeroMemory();
+  fputs("section .bss\n\tbuffer: resb 30000\nglobal _start\nsection .text\n_start:\n\tmov r15, buffer\n", fp);
 
   /* bracketDepth is equal to n - m where n is the number of '[' read
      and m is the number of ']' read. */
@@ -94,60 +90,40 @@ int main() {
   for(codeIndex++; code[codeIndex] != '\0'; codeIndex++) {
     switch(code[codeIndex]) {
     case '>':
-      p++;
+      fputs("\tinc r15\n", fp);
       break;
     case '<':
-      p--;
+      fputs("\tdec r15\n", fp);
       break;
     case '+':
-      (*p)++;
+      fputs("\tinc byte [r15]\n", fp);
       break;
     case '-':
-      /* BUG: this line segfaults when ran with
-	 http://brainfuck.org/400quine.b. The segfault only occurs
-	 when the program is ran outside of gdb or inside of gdb with
-	 `set disable-randomization off`. If it is ran inside of gdb
-	 without setting disable-randomization it works fine. */
-      (*p)--;
+      fputs("\tdec byte [r15]\n", fp);
       break;
     case '.':
-      putchar(*p);
+      fputs("\tmov rax, 1\n\tmov rdi, 1\n\tmov rsi, r15\n\tmov rdx, 1\n\tsyscall\n", fp);
       break;
     case ',':
-      *p = getchar();
       break;
-    case '[': {
-      int originalBracketDepth = bracketDepth;
+    case '[':
       bracketDepth++;
-      if(*p == 0) {
-	codeIndex++;
-	for(;;) {
-	  if(code[codeIndex] == '[') bracketDepth++;
-	  else if(code[codeIndex] == ']') bracketDepth--;
-
-	  if(bracketDepth == originalBracketDepth) break;
-	  codeIndex++;
-	}
-      }
-      break;
-    }
-    case ']': {
-      int originalBracketDepth = bracketDepth;
+    case ']':
       bracketDepth--;
-      if(*p != 0) {
-	codeIndex--;
-	for(;;) {
-	  if(code[codeIndex] == '[') bracketDepth++;
-	  else if(code[codeIndex] == ']') bracketDepth--;
-
-	  if(bracketDepth == originalBracketDepth) break;
-	  codeIndex--;
-	}
-      }
-
-    }
     }
   }
 
+  /* exit with 0 status code */
+  fputs("\tmov rax, 60\n\tmov rdi, 0\n\tsyscall\n", fp);
+
+  fclose(fp);
+
+  system("nasm -f elf64 -o code.o code.asm && ld code.o -o code");
   return 0;
 }
+
+/* leftBracketToLabel writes the label representing the leftBracket at depth bracketDepth to code.asm. */
+void leftBracketToLabel(int bracketDepth);
+
+/* rightBracketToLabel writes the label representing the rightBracket at depth bracketDepth to code.asm. */
+void rightBracketToLabel(int bracketDepth);

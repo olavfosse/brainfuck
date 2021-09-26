@@ -70,7 +70,10 @@ void validateCode() {
 
 int main() {
   FILE *fp;
-  int bracketDepth;
+  /* adhoc stack solution since it only works for 1024 elements, oh well.*/
+  int leftBracketIdStack[1024];
+  int topLeftBracketIdIndex = -1;
+  int nextLeftBracketId = 0;
 
   readCode();
   validateCode();
@@ -82,10 +85,6 @@ int main() {
   }
 
   fputs("section .bss\n\tbuffer: resb 30000\nglobal _start\nsection .text\n_start:\n\tmov r15, buffer\n", fp);
-
-  /* bracketDepth is equal to n - m where n is the number of '[' read
-     and m is the number of ']' read. */
-  bracketDepth = 0;
 
   for(; code[codeIndex] != '\0'; codeIndex++) {
     switch(code[codeIndex]) {
@@ -108,9 +107,17 @@ int main() {
       fputs("\tmov rax, 0\n\tmov rdi, 0\n\tmov rsi, r15\n\tmov rdx, 1\n\tsyscall\n", fp);
       break;
     case '[':
-      bracketDepth++;
+      fprintf(fp, "\tcmp byte [r15], 0\n\tje .rightbracket%d\n\t", nextLeftBracketId);
+      fprintf(fp, ".leftbracket%d:\n", nextLeftBracketId);
+      topLeftBracketIdIndex++;
+      leftBracketIdStack[topLeftBracketIdIndex] = nextLeftBracketId;
+      nextLeftBracketId++;
+      break;
     case ']':
-      bracketDepth--;
+      fprintf(fp, "\tcmp byte [r15], 0\n\tjne .leftbracket%d\n\t", leftBracketIdStack[topLeftBracketIdIndex]);
+      fprintf(fp, ".rightbracket%d:\n", leftBracketIdStack[topLeftBracketIdIndex]);
+      topLeftBracketIdIndex--;
+      break;
     }
   }
 
@@ -122,9 +129,3 @@ int main() {
   system("nasm -f elf64 -o code.o code.asm && ld code.o -o code");
   return 0;
 }
-
-/* leftBracketToLabel writes the label representing the leftBracket at depth bracketDepth to code.asm. */
-void leftBracketToLabel(int bracketDepth);
-
-/* rightBracketToLabel writes the label representing the rightBracket at depth bracketDepth to code.asm. */
-void rightBracketToLabel(int bracketDepth);

@@ -87,7 +87,7 @@ int main() {
      and m is the number of ']' read. */
   bracketDepth = 0;
 
-  for(codeIndex++; code[codeIndex] != '\0'; codeIndex++) {
+  for(; code[codeIndex] != '\0'; codeIndex++) {
     switch(code[codeIndex]) {
     case '>':
       fputs("\tinc r15\n", fp);

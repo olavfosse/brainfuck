@@ -105,6 +105,7 @@ int main() {
       fputs("\tmov rax, 1\n\tmov rdi, 1\n\tmov rsi, r15\n\tmov rdx, 1\n\tsyscall\n", fp);
       break;
     case ',':
+      fputs("\tmov rax, 0\n\tmov rdi, 0\n\tmov rsi, r15\n\tmov rdx, 1\n\tsyscall\n", fp);
       break;
     case '[':
       bracketDepth++;

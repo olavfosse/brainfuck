@@ -104,7 +104,7 @@ int main() {
 
   fp = fopen("code.asm","w");
   if(fp == NULL) {
-    fputs("error: could not open code.asm\n",stderr);
+    perror("error: could not open code.asm");
     exit(1);
   }
 
@@ -177,7 +177,11 @@ int main() {
   "\tsyscall\n"
   , fp);
 
-  fclose(fp);
+  if(fclose(fp) == EOF) {
+    perror("error: could not close code.asm");
+    exit(1);
+  }
+
 
   system("nasm -f elf64 -o code.o code.asm && ld code.o -o code");
   return 0;

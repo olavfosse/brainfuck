@@ -5,24 +5,48 @@ int codeIndex = 0;
 char *code;
 
 void readCode() {
-  /* TODO: handle errors and understand wtf this is doing. */
   FILE *fp;
   int len;
 
   fp = fopen("code.b", "r");
   if(fp == NULL) {
-    fputs("error: could not open code.b\n", stderr);
+    perror("error: could not open code.b");
     exit(1);
   }
 
-  fseek(fp, 0, SEEK_END);
+  if(fseek(fp, 0, SEEK_END) == -1) {
+    perror("error: could not read code.b");
+    exit(1);
+  }
+
   len = ftell(fp);
-  rewind(fp);
+  if(len == -1) {
+    perror("error could not read code.b");
+    exit(1);
+  }
+
+  if(fseek(fp, 0, SEEK_SET) == -1) {
+    perror("error: could not read code.b");
+    exit(1);
+  }
 
   code = malloc(len * sizeof(char) + 1);
+  if(code == NULL) {
+    perror("error: could not read code.b");
+    exit(1);
+  }
+
   code[len] = '\0';
-  fread(code, len, 1, fp);
-  fclose(fp);
+
+  if(fread(code, len, 1, fp) == 0 && len != 0) {
+    perror("error: could not read code.b");
+    exit(1);
+  }
+
+  if(fclose(fp) == EOF) {
+    perror("error: could not close code.b");
+    exit(1);
+  }
 }
 
 /* validates that all '[' have matching ']' and vice versa. */

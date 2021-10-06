@@ -102,13 +102,20 @@ int main() {
   readCode();
   validateCode();
 
-  fp = fopen("code.asm", "w");
+  fp = fopen("code.asm","w");
   if(fp == NULL) {
-    fputs("error: could not open code.asm\n", stderr);
+    fputs("error: could not open code.asm\n",stderr);
     exit(1);
   }
 
-  fputs("section .bss\n\tbuffer: resb 30000\nglobal _start\nsection .text\n_start:\n\tmov r15, buffer\n", fp);
+  fputs(
+"section .bss\n"
+  "\tbuffer: resb 30000\n"
+"global _start\n"
+"section .text\n"
+"_start:\n"
+  "\tmov r15, buffer\n"
+  ,fp);
 
   for(; code[codeIndex] != '\0'; codeIndex++) {
     switch(code[codeIndex]) {
@@ -125,28 +132,50 @@ int main() {
       fputs("\tdec byte [r15]\n", fp);
       break;
     case '.':
-      fputs("\tmov rax, 1\n\tmov rdi, 1\n\tmov rsi, r15\n\tmov rdx, 1\n\tsyscall\n", fp);
+      fputs(
+  "\tmov rax, 1\n"
+  "\tmov rdi, 1\n"
+  "\tmov rsi, r15\n"
+  "\tmov rdx, 1\n"
+  "\tsyscall\n"
+      , fp);
       break;
     case ',':
-      fputs("\tmov rax, 0\n\tmov rdi, 0\n\tmov rsi, r15\n\tmov rdx, 1\n\tsyscall\n", fp);
+      fputs(
+  "\tmov rax, 0\n"
+  "\tmov rdi, 0\n"
+  "\tmov rsi, r15\n"
+  "\tmov rdx, 1\n"
+  "\tsyscall\n"
+      , fp);
       break;
     case '[':
-      fprintf(fp, "\tcmp byte [r15], 0\n\tje .rightbracket%d\n\t", nextLeftBracketId);
-      fprintf(fp, ".leftbracket%d:\n", nextLeftBracketId);
+      fprintf(fp,
+  "\tcmp byte [r15], 0\n"
+  "\tje .rightbracket%d\n"
+  "\t.leftbracket%d:\n"
+      , nextLeftBracketId, nextLeftBracketId);
       topLeftBracketIdIndex++;
       leftBracketIdStack[topLeftBracketIdIndex] = nextLeftBracketId;
       nextLeftBracketId++;
       break;
     case ']':
-      fprintf(fp, "\tcmp byte [r15], 0\n\tjne .leftbracket%d\n\t", leftBracketIdStack[topLeftBracketIdIndex]);
-      fprintf(fp, ".rightbracket%d:\n", leftBracketIdStack[topLeftBracketIdIndex]);
+      fprintf(fp,
+  "\tcmp byte [r15], 0\n"
+  "\tjne .leftbracket%d\n"
+  "\t.rightbracket%d:\n"
+      , leftBracketIdStack[topLeftBracketIdIndex], leftBracketIdStack[topLeftBracketIdIndex]);
       topLeftBracketIdIndex--;
       break;
     }
   }
 
   /* exit with 0 status code */
-  fputs("\tmov rax, 60\n\tmov rdi, 0\n\tsyscall\n", fp);
+  fputs(
+  "\tmov rax, 60\n"
+  "\tmov rdi, 0\n"
+  "\tsyscall\n"
+  , fp);
 
   fclose(fp);
 

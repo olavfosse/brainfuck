@@ -160,7 +160,6 @@ int main() {
 
   if(fclose(fp) == EOF) goto write_error;
 
-  system("nasm -f elf64 -o code.o code.asm && ld code.o -o code");
   return 0;
 
  write_error:

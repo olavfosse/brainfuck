@@ -87,86 +87,83 @@ int main() {
   validateCode();
 
   fp = fopen("code.asm","w");
-  if(fp == NULL) {
-    perror("error: could not open code.asm");
-    exit(1);
-  }
+  if(fp == NULL) goto write_error;
 
-  fputs(
+  if(fputs(
 "section .bss\n"
   "\tbuffer: resb 30000\n"
 "global _start\n"
 "section .text\n"
 "_start:\n"
   "\tmov r15, buffer\n"
-  ,fp);
+  ,fp) == EOF) goto write_error;
 
   for(; code[codeIndex] != '\0'; codeIndex++) {
     switch(code[codeIndex]) {
     case '>':
-      fputs("\tinc r15\n", fp);
+      if(fputs("\tinc r15\n", fp) == EOF) goto write_error;
       break;
     case '<':
-      fputs("\tdec r15\n", fp);
+      if(fputs("\tdec r15\n", fp) == EOF) goto write_error;
       break;
     case '+':
-      fputs("\tinc byte [r15]\n", fp);
+      if(fputs("\tinc byte [r15]\n", fp) == EOF) goto write_error;
       break;
     case '-':
-      fputs("\tdec byte [r15]\n", fp);
+      if(fputs("\tdec byte [r15]\n", fp) == EOF) goto write_error;
       break;
     case '.':
-      fputs(
+      if(fputs(
   "\tmov rax, 1\n"
   "\tmov rdi, 1\n"
   "\tmov rsi, r15\n"
   "\tmov rdx, 1\n"
   "\tsyscall\n"
-      , fp);
+      , fp) == EOF) goto write_error;
       break;
     case ',':
-      fputs(
+      if(fputs(
   "\tmov rax, 0\n"
   "\tmov rdi, 0\n"
   "\tmov rsi, r15\n"
   "\tmov rdx, 1\n"
   "\tsyscall\n"
-      , fp);
+      , fp) == EOF) goto write_error;
       break;
     case '[':
-      fprintf(fp,
+      if(0 > fprintf(fp,
   "\tcmp byte [r15], 0\n"
   "\tje .rightbracket%d\n"
   "\t.leftbracket%d:\n"
-      , nextLeftBracketId, nextLeftBracketId);
+      , nextLeftBracketId, nextLeftBracketId)) goto write_error;
       topLeftBracketIdIndex++;
       leftBracketIdStack[topLeftBracketIdIndex] = nextLeftBracketId;
       nextLeftBracketId++;
       break;
     case ']':
-      fprintf(fp,
+      if(0 > fprintf(fp,
   "\tcmp byte [r15], 0\n"
   "\tjne .leftbracket%d\n"
   "\t.rightbracket%d:\n"
-      , leftBracketIdStack[topLeftBracketIdIndex], leftBracketIdStack[topLeftBracketIdIndex]);
+      , leftBracketIdStack[topLeftBracketIdIndex], leftBracketIdStack[topLeftBracketIdIndex])) goto write_error;
       topLeftBracketIdIndex--;
       break;
     }
   }
 
   /* exit with 0 status code */
-  fputs(
+  if(fputs(
   "\tmov rax, 60\n"
   "\tmov rdi, 0\n"
   "\tsyscall\n"
-  , fp);
+  , fp) == EOF) goto write_error;
 
-  if(fclose(fp) == EOF) {
-    perror("error: could not close code.asm");
-    exit(1);
-  }
-
+  if(fclose(fp) == EOF) goto write_error;
 
   system("nasm -f elf64 -o code.o code.asm && ld code.o -o code");
   return 0;
+
+ write_error:
+  perror("error: could not write to code.asm");
+  exit(1);
 }

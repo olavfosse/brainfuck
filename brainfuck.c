@@ -9,44 +9,28 @@ void readCode() {
   int len;
 
   fp = fopen("code.b", "r");
-  if(fp == NULL) {
-    perror("error: could not open code.b");
-    exit(1);
-  }
+  if(fp == NULL) goto error;
 
-  if(fseek(fp, 0, SEEK_END) == -1) {
-    perror("error: could not read code.b");
-    exit(1);
-  }
+  if(fseek(fp, 0, SEEK_END) == -1) goto error;
 
   len = ftell(fp);
-  if(len == -1) {
-    perror("error could not read code.b");
-    exit(1);
-  }
+  if(len == -1) goto error;
 
-  if(fseek(fp, 0, SEEK_SET) == -1) {
-    perror("error: could not read code.b");
-    exit(1);
-  }
+  if(fseek(fp, 0, SEEK_SET) == -1) goto error;
 
   code = malloc(len * sizeof(char) + 1);
-  if(code == NULL) {
-    perror("error: could not read code.b");
-    exit(1);
-  }
+  if(code == NULL) goto error;
 
   code[len] = '\0';
 
-  if(fread(code, len, 1, fp) == 0 && len != 0) {
-    perror("error: could not read code.b");
-    exit(1);
-  }
+  if(fread(code, len, 1, fp) == 0 && len != 0) goto error;
 
-  if(fclose(fp) == EOF) {
-    perror("error: could not close code.b");
-    exit(1);
-  }
+  if(fclose(fp) == EOF) goto error;
+  return;
+
+ error:
+  perror("error: could not read code.b");
+  exit(1);
 }
 
 /* validates that all '[' have matching ']' and vice versa. */

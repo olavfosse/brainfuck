@@ -1,14 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int codeIndex = 0;
-char *code;
-
-void readCode() {
+char *read(char *filename) {
   FILE *fp;
   int len;
+  char *code;
 
-  fp = fopen("code.b", "r");
+  fp = fopen(filename, "r");
   if(fp == NULL) goto error;
 
   if(fseek(fp, 0, SEEK_END) == -1) goto error;
@@ -26,15 +24,16 @@ void readCode() {
   if(fread(code, len, 1, fp) == 0 && len != 0) goto error;
 
   if(fclose(fp) == EOF) goto error;
-  return;
+  return code;
 
  error:
-  perror("error: could not read code.b");
+  fprintf(stderr, "error: could not read %s: ", filename);
+  perror(NULL);
   exit(1);
 }
 
 /* validates that all '[' have matching ']' and vice versa. */
-void validateCode() {
+void validate(char *code) {
   /* the error reporting strategy is to report as early as
      possible. */
   int bracketDepth = 0;
@@ -45,6 +44,7 @@ void validateCode() {
   int uppermostLeftBracketLine = -1;
   int uppermostLeftBracketColumn = -1;
 
+  int codeIndex = 0;
   for(; code[codeIndex] != '\0';) {
     switch(code[codeIndex]) {
     case '[':
@@ -73,21 +73,18 @@ void validateCode() {
     fprintf(stderr, "error: %d. char in %d. line is an unmatched '['\n", uppermostLeftBracketColumn, uppermostLeftBracketLine);
     exit(1);
   }
-  codeIndex = 0;
 }
 
-int main() {
+void compile(char *code, char *target_filename) {
   FILE *fp;
   /* adhoc stack solution since it only works for 1024 elements, oh well.*/
   int leftBracketIdStack[1024];
   int topLeftBracketIdIndex = -1;
   int nextLeftBracketId = 0;
+  int codeIndex = 0;
 
-  readCode();
-  validateCode();
-
-  fp = fopen("code.asm","w");
-  if(fp == NULL) goto write_error;
+  fp = fopen(target_filename,"w");
+  if(fp == NULL) goto error;
 
   if(fputs(
 "section .bss\n"
@@ -96,21 +93,21 @@ int main() {
 "section .text\n"
 "_start:\n"
   "\tmov r15, buffer\n"
-  ,fp) == EOF) goto write_error;
+  ,fp) == EOF) goto error;
 
   for(; code[codeIndex] != '\0'; codeIndex++) {
     switch(code[codeIndex]) {
     case '>':
-      if(fputs("\tinc r15\n", fp) == EOF) goto write_error;
+      if(fputs("\tinc r15\n", fp) == EOF) goto error;
       break;
     case '<':
-      if(fputs("\tdec r15\n", fp) == EOF) goto write_error;
+      if(fputs("\tdec r15\n", fp) == EOF) goto error;
       break;
     case '+':
-      if(fputs("\tinc byte [r15]\n", fp) == EOF) goto write_error;
+      if(fputs("\tinc byte [r15]\n", fp) == EOF) goto error;
       break;
     case '-':
-      if(fputs("\tdec byte [r15]\n", fp) == EOF) goto write_error;
+      if(fputs("\tdec byte [r15]\n", fp) == EOF) goto error;
       break;
     case '.':
       if(fputs(
@@ -119,7 +116,7 @@ int main() {
   "\tmov rsi, r15\n"
   "\tmov rdx, 1\n"
   "\tsyscall\n"
-      , fp) == EOF) goto write_error;
+      , fp) == EOF) goto error;
       break;
     case ',':
       if(fputs(
@@ -128,14 +125,14 @@ int main() {
   "\tmov rsi, r15\n"
   "\tmov rdx, 1\n"
   "\tsyscall\n"
-      , fp) == EOF) goto write_error;
+      , fp) == EOF) goto error;
       break;
     case '[':
       if(0 > fprintf(fp,
   "\tcmp byte [r15], 0\n"
   "\tje .rightbracket%d\n"
   "\t.leftbracket%d:\n"
-      , nextLeftBracketId, nextLeftBracketId)) goto write_error;
+      , nextLeftBracketId, nextLeftBracketId)) goto error;
       topLeftBracketIdIndex++;
       leftBracketIdStack[topLeftBracketIdIndex] = nextLeftBracketId;
       nextLeftBracketId++;
@@ -145,24 +142,32 @@ int main() {
   "\tcmp byte [r15], 0\n"
   "\tjne .leftbracket%d\n"
   "\t.rightbracket%d:\n"
-      , leftBracketIdStack[topLeftBracketIdIndex], leftBracketIdStack[topLeftBracketIdIndex])) goto write_error;
+      , leftBracketIdStack[topLeftBracketIdIndex], leftBracketIdStack[topLeftBracketIdIndex])) goto error;
       topLeftBracketIdIndex--;
       break;
     }
   }
 
-  /* exit with 0 status code */
   if(fputs(
   "\tmov rax, 60\n"
   "\tmov rdi, 0\n"
   "\tsyscall\n"
-  , fp) == EOF) goto write_error;
+  , fp) == EOF) goto error;
 
-  if(fclose(fp) == EOF) goto write_error;
+  if(fclose(fp) == EOF) goto error;
 
-  return 0;
+  return;
 
- write_error:
-  perror("error: could not write to code.asm");
+ error:
+  fprintf(stderr, "error: could not write to %s: ", target_filename);
+  perror(NULL);
   exit(1);
+}
+
+
+int main() {
+  char *code = read("code.b");
+  validate(code);
+  compile(code, "code.asm");
+  return 0;
 }

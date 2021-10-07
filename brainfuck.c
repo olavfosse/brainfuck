@@ -165,9 +165,16 @@ void compile(char *code, char *target_filename) {
 }
 
 
-int main() {
-  char *code = read("code.b");
+int main(int argc, char** argv) {
+  char *code;
+
+  if(argc != 3) {
+    fputs("usage: brainfuck input output\n", stderr);
+    exit(1);
+  }
+
+  code = read(argv[1]);
   validate(code);
-  compile(code, "code.asm");
+  compile(code, argv[2]);
   return 0;
 }

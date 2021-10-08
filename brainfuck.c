@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 char *read(char *filename) {
   FILE *fp;
@@ -75,7 +76,7 @@ void validate(char *code) {
   }
 }
 
-void compile(char *code, char *target_filename) {
+void compile_to_x64(char *code, char *target_filename) {
   FILE *fp;
   /* adhoc stack solution since it only works for 1024 elements, oh well.*/
   int leftBracketIdStack[1024];
@@ -164,17 +165,102 @@ void compile(char *code, char *target_filename) {
   exit(1);
 }
 
+void compile_to_c89(char *code, char *target_filename) {
+  FILE *fp;
+  /* adhoc stack solution since it only works for 1024 elements, oh well.*/
+  int leftBracketIdStack[1024];
+  int topLeftBracketIdIndex = -1;
+  int nextLeftBracketId = 0;
+  int codeIndex = 0;
+
+  fp = fopen(target_filename,"w");
+  if(fp == NULL) goto error;
+
+  if(fputs(
+"#include <stdio.h>\n"
+"\n"
+"char buf[30000];\n" /* since this is a global variable we don't need to manually set all elements to 0 */
+"int i = 0;\n"
+"\n"
+"int main() {\n"
+  ,fp) == EOF) goto error;
+
+  for(; code[codeIndex] != '\0'; codeIndex++) {
+    switch(code[codeIndex]) {
+    case '>':
+      if(fputs("\ti++;\n", fp) == EOF) goto error;
+      break;
+    case '<':
+      if(fputs("\ti--;\n", fp) == EOF) goto error;
+      break;
+    case '+':
+      if(fputs("\tbuf[i]++;\n", fp) == EOF) goto error;
+      break;
+    case '-':
+      if(fputs("\tbuf[i]--;\n", fp) == EOF) goto error;
+      break;
+    case '.':
+      if(fputs("\tputchar(buf[i]);\n", fp) == EOF) goto error;
+      break;
+    case ',':
+      if(fputs("\tbuf[i] = getchar();\n", fp) == EOF) goto error;
+      break;
+    case '[':
+      if(0 > fprintf(fp,
+  "\tif(buf[i] == 0) goto right%d;\n"
+  "\tleft%d:\n"
+      , nextLeftBracketId, nextLeftBracketId)) goto error;
+      topLeftBracketIdIndex++;
+      leftBracketIdStack[topLeftBracketIdIndex] = nextLeftBracketId;
+      nextLeftBracketId++;
+      break;
+    case ']':
+      if(0 > fprintf(fp,
+  "\tif(buf[i] != 0) goto left%d;\n"
+  "\tright%d:\n"
+      , leftBracketIdStack[topLeftBracketIdIndex], leftBracketIdStack[topLeftBracketIdIndex])) goto error;
+      topLeftBracketIdIndex--;
+      break;
+    }
+  }
+
+  if(fputs(
+"\treturn 0;\n" /* return is required as otherwise we risk having a label at the end of main. (which is illegal) */
+"}\n"
+  , fp) == EOF) goto error;
+
+  if(fclose(fp) == EOF) goto error;
+
+  return;
+
+ error:
+  fprintf(stderr, "error: could not write to %s: ", target_filename);
+  perror(NULL);
+  exit(1);
+}
 
 int main(int argc, char** argv) {
   char *code;
+  void (*compile)(char *, char *);
 
-  if(argc != 3) {
-    fputs("usage: brainfuck input output\n", stderr);
+
+  if(argc != 4) {
+    fputs("usage: brainfuck target input output\n", stderr);
     exit(1);
   }
 
-  code = read(argv[1]);
+  if(strcmp(argv[1], "x64") == 0) {
+    compile = compile_to_x64;
+  } else if(strcmp(argv[1], "c89") == 0) {
+    compile = compile_to_c89;
+  } else {
+    fputs("error: target must be x64 or c89\n", stderr);
+    exit(1);
+  }
+
+  code = read(argv[2]);
   validate(code);
-  compile(code, argv[2]);
+  compile(code, argv[3]);
+
   return 0;
 }

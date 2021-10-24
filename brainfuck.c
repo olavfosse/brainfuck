@@ -239,23 +239,103 @@ void compile_to_c89(char *code, char *target_filename) {
   exit(1);
 }
 
+void interpret(char *code) {
+  char memory[30000];
+  char *p;
+  int bracketDepth;
+
+  for(p = memory; p < memory + 30000; p++) *p = 0;
+  p = memory;
+
+  /* bracketDepth is equal to n - m where n is the number of '[' read
+     and m is the number of ']' read. */
+  bracketDepth = 0;
+
+  for(code++; *code != '\0'; code++) {
+    switch(*code) {
+    case '>':
+      p++;
+      break;
+    case '<':
+      p--;
+      break;
+    case '+':
+      (*p)++;
+      break;
+    case '-':
+      /* BUG: this line segfaults when ran with
+	 http://brainfuck.org/400quine.b. The segfault only occurs
+	 when the program is ran outside of gdb or inside of gdb with
+	 `set disable-randomization off`. If it is ran inside of gdb
+	 without setting disable-randomization it works fine. */
+      (*p)--;
+      break;
+    case '.':
+      putchar(*p);
+      break;
+    case ',':
+      *p = getchar();
+      break;
+    case '[': {
+      int originalBracketDepth = bracketDepth;
+      bracketDepth++;
+      if(*p == 0) {
+	code++;
+	for(;;) {
+	  if(*code == '[') bracketDepth++;
+	  else if(*code == ']') bracketDepth--;
+
+	  if(bracketDepth == originalBracketDepth) break;
+	  code++;
+	}
+      }
+      break;
+    }
+    case ']': {
+      int originalBracketDepth = bracketDepth;
+      bracketDepth--;
+      if(*p != 0) {
+	code--;
+	for(;;) {
+	  if(*code == '[') bracketDepth++;
+	  else if(*code == ']') bracketDepth--;
+
+	  if(bracketDepth == originalBracketDepth) break;
+	  code--;
+	}
+      }
+    }
+    }
+  }
+}
+
+void exit_with_usage() {
+  fputs("usage: brainfuck interpret source\n"
+	"       brainfuck c89 source target\n"
+	"       brainfuck x64 source target\n"
+	, stderr);
+  exit(1);
+}
+
 int main(int argc, char** argv) {
   char *code;
   void (*compile)(char *, char *);
 
-
-  if(argc != 4) {
-    fputs("usage: brainfuck target input output\n", stderr);
-    exit(1);
+  if(argc == 3 && strcmp(argv[1], "interpret") == 0) {
+    code = read(argv[2]);
+    validate(code);
+    interpret(code);
+    return 0;
   }
+
+  if(argc != 4) exit_with_usage();
 
   if(strcmp(argv[1], "x64") == 0) {
     compile = compile_to_x64;
   } else if(strcmp(argv[1], "c89") == 0) {
     compile = compile_to_c89;
   } else {
-    fputs("error: target must be x64 or c89\n", stderr);
-    exit(1);
+    exit_with_usage();
   }
 
   code = read(argv[2]);
